@@ -1,17 +1,19 @@
 name: Self Hosted Docker Test
 
 on:
-  workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
-  test-docker:
+  test:
     runs-on: [self-hosted, linux, x64]
 
     steps:
-      - name: Checkout source code
+      - name: Checkout
         uses: actions/checkout@v6
 
-      - name: Check Docker
+      - name: Check runner
         run: |
           whoami
           hostname
