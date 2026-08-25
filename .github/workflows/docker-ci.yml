@@ -21,6 +21,23 @@ jobs:
           minikube kubectl -- version --client
           minikube status
 
+      - name: Check Docker secrets
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_TOKEN: ${{ secrets.DOCKER_TOKEN }}
+        run: |
+          if [ -z "$DOCKER_USERNAME" ]; then
+            echo "DOCKER_USERNAME is empty"
+            exit 1
+          fi
+
+          if [ -z "$DOCKER_TOKEN" ]; then
+            echo "DOCKER_TOKEN is empty"
+            exit 1
+          fi
+
+          echo "Docker secrets are available"
+
       - name: Login Docker Hub
         uses: docker/login-action@v3
         with:
@@ -28,20 +45,18 @@ jobs:
           password: ${{ secrets.DOCKER_TOKEN }}
 
       - name: Build Docker image
-        run: |
-          docker build \
-            -t ${{ secrets.DOCKER_USERNAME }}/discord-bot:latest \
-            .
+        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/discord-bot:latest .
 
       - name: Push Docker image
-        run: |
-          docker push ${{ secrets.DOCKER_USERNAME }}/discord-bot:latest
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/discord-bot:latest
 
       - name: Deploy to Kubernetes
         run: |
           minikube kubectl -- apply -f deployment.yaml
+          minikube kubectl -- set image deployment/discord-bot discord-bot=${{ secrets.DOCKER_USERNAME }}/discord-bot:latest
+          minikube kubectl -- rollout status deployment/discord-bot --timeout=180s
 
-          minikube kubectl -- set image deployment/discord-bot \
-            discord-bot=${{ secrets.DOCKER_USERNAME }}/discord-bot:latest
-
-          minikube kubectl -- rollout status deployment/discord-bot
+      - name: Check deployment
+        run: |
+          minikube kubectl -- get deployments
+          minikube kubectl -- get pods
