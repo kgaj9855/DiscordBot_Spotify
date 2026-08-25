@@ -1,17 +1,22 @@
-name: Docker CI
+name: Self Hosted Docker Test
 
 on:
-  push:
-    branches:
-      - main
+  workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  test-docker:
+    runs-on: [self-hosted, linux, x64]
 
     steps:
       - name: Checkout source code
         uses: actions/checkout@v6
+
+      - name: Check Docker
+        run: |
+          whoami
+          hostname
+          docker --version
+          docker ps
 
       - name: Build Docker image
         run: docker build -t discord-bot .
