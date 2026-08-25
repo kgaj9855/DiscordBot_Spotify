@@ -18,8 +18,13 @@ spec:
 
     spec:
       containers:
-        - name: discord-bot
-          image: ken900809/discord-bot:latest
-          imagePullPolicy: Always
-          ports:
-            - containerPort: 8080
+      - name: discord-bot
+        image: ken900809/discord-bot:latest
+        imagePullPolicy: Always
+
+        ports:
+          - containerPort: 8080
+
+      envFrom:
+        - secretRef:
+            name: discord-bot-secret
