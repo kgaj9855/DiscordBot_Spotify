@@ -18,7 +18,7 @@ jobs:
           whoami
           hostname
           docker --version
-          kubectl version --client
+          minikube kubectl -- version --client
           minikube status
 
       - name: Login Docker Hub
@@ -39,9 +39,9 @@ jobs:
 
       - name: Deploy to Kubernetes
         run: |
-          kubectl apply -f deployment.yaml
+          minikube kubectl -- apply -f deployment.yaml
 
-          kubectl set image deployment/discord-bot \
+          minikube kubectl -- set image deployment/discord-bot \
             discord-bot=${{ secrets.DOCKER_USERNAME }}/discord-bot:latest
 
-          kubectl rollout status deployment/discord-bot
+          minikube kubectl -- rollout status deployment/discord-bot
