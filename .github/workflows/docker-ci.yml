@@ -52,7 +52,7 @@ jobs:
 
       - name: Deploy to Kubernetes
         run: |
-          minikube kubectl -- apply -f deployment.yaml
+          minikube kubectl -- apply -f k8s/deployment.yaml
           minikube kubectl -- set image deployment/discord-bot discord-bot=${{ secrets.DOCKER_USERNAME }}/discord-bot:latest
           minikube kubectl -- rollout status deployment/discord-bot --timeout=180s
 
