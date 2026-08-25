@@ -1,0 +1,17 @@
+# Secrets and local environment files
+.env
+.env.*
+!.env.example
+
+# Maven output
+target/
+
+# Runtime output
+logs/
+*.log
+
+# IDE and OS files
+.idea/
+.vscode/
+*.iml
+.DS_Store

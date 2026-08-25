@@ -1,0 +1,19 @@
+# Secrets and local environment files must never enter the build context.
+.env
+.env.*
+!.env.example
+
+# Build and VCS metadata
+target/
+.git/
+.gitignore
+
+# IDE and OS files
+.idea/
+.vscode/
+*.iml
+.DS_Store
+
+# Local runtime output
+logs/
+*.log
