@@ -6,7 +6,6 @@ import se.michaelthelin.spotify.SpotifyApi;
 import se.michaelthelin.spotify.model_objects.credentials.AuthorizationCodeCredentials;
 import se.michaelthelin.spotify.model_objects.special.SnapshotResult;
 import se.michaelthelin.spotify.model_objects.specification.Paging;
-import se.michaelthelin.spotify.model_objects.specification.Playlist;
 import se.michaelthelin.spotify.requests.authorization.authorization_code.AuthorizationCodeRequest;
 import se.michaelthelin.spotify.requests.authorization.authorization_code.AuthorizationCodeUriRequest;
 import se.michaelthelin.spotify.requests.authorization.authorization_code.AuthorizationCodeRefreshRequest;
@@ -19,14 +18,25 @@ import java.util.concurrent.CompletableFuture;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import com.example.DTO.CurrentPlaylist;
+import com.example.DTO.ResultPlaylist;
+
+import reactor.core.publisher.Mono;
+
 
 @Service
 public class SpotifyService {
 
-        private final SpotifyApi spotifyApi;
+    private final SpotifyApi spotifyApi;
+    private final SpotifyAPIClient spotifyAPIClient;
 
-        public SpotifyService(@Value("${SPOTIFY_CLIENT_ID}") String clientId,@Value("${SPOTIFY_CLIENT_SECRET}") String clientSecret,@Value("${SPOTIFY_REDIRECT_URI}") String redirectUri) 
+    public SpotifyService(
+            @Value("${SPOTIFY_CLIENT_ID}") String clientId,
+            @Value("${SPOTIFY_CLIENT_SECRET}") String clientSecret,
+            @Value("${SPOTIFY_REDIRECT_URI}") String redirectUri,
+            SpotifyAPIClient spotifyAPIClient)
         {
+                this.spotifyAPIClient = spotifyAPIClient;
 
                 this.spotifyApi = new SpotifyApi.Builder()
                         .setClientId(clientId)
@@ -113,26 +123,31 @@ public class SpotifyService {
     }
 
     // 6. 取得 Playlist
-    public CompletableFuture<Playlist>
-            getPlaylist(String playlistId) {
+   public Mono<CurrentPlaylist> getCurrentPlaylist(Integer limit,Integer offset) 
+   {
 
-        return spotifyApi.getPlaylist(playlistId)
-                .build()
-                .executeAsync();
-    }
+        int finalLimit = (limit != null) ? limit : 20;
+        int finalOffset = (offset != null) ? offset : 0;
+
+        String accessToken = spotifyApi.getAccessToken();
+
+        return spotifyAPIClient.getCurrentPlaylist(
+                accessToken,
+                finalLimit,
+                finalOffset
+        );
+   }
 
     // 7. 建立 Playlist
-    public CompletableFuture<Playlist>
-            createPlaylist(
-                    String userId,
-                    String playlistName) {
+    public Mono<ResultPlaylist> createPlaylist(String playlistName) 
+    {
 
-        return spotifyApi
-                .createPlaylist(userId, playlistName)
-                .description("Created by Discord Spotify Bot")
-                .public_(false)
-                .build()
-                .executeAsync();
+        String accessToken = spotifyApi.getAccessToken();
+
+        return spotifyAPIClient.createPlaylist(
+                accessToken,
+                playlistName
+        );
     }
 
     // 8. 加歌曲到 Playlist

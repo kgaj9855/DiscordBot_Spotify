@@ -1,16 +1,18 @@
 package com.example.mcp;
 
+import com.example.DTO.ResultPlaylist;
 import com.example.Spotify.SpotifyService;
+
+import reactor.core.publisher.Mono;
 
 import org.springframework.stereotype.Component;
 
 import java.net.URI;
+import java.util.stream.Collectors;
 
-import org.springaicommunity.mcp.annotation.McpTool;
 import org.springframework.ai.tool.annotation.Tool;
 
 import se.michaelthelin.spotify.model_objects.specification.Track;
-import se.michaelthelin.spotify.model_objects.specification.Playlist;
 import se.michaelthelin.spotify.model_objects.specification.Paging;
 
 @Component
@@ -87,33 +89,37 @@ public class SpotifyTools {
 
 
     // 取得 Playlist
-    @Tool(description = "Get Spotify playlist information by playlist ID")
-    public String getPlaylist(String playlistId) {
+    @Tool(description = "Get current user's Spotify playlists")
+    public Mono<String> getPlaylist(Integer limit, Integer offset) 
+    {
 
-        Playlist playlist =
-                spotifyService
-                        .getPlaylist(playlistId)
-                        .join();
+        return spotifyService
+                .getCurrentPlaylist(limit, offset)
+                .map(result -> {
 
-        return "Playlist: " + playlist.getName()
-                + "\nOwner: " + playlist.getOwner().getDisplayName()
-                + "\nDescription: " + playlist.getDescription();
+                        return result.getItems()
+                                .stream()
+                                .map(playlist ->
+                                        "Playlist: " + playlist.getName()
+                                        + "\nID: " + playlist.getId()
+                                )
+                                .collect(Collectors.joining("\n\n"));
+                });
     }
 
 
     // 建立 Playlist
     @Tool(description = "Create a new private Spotify playlist")
     public String createPlaylist(
-            String userId,
             String playlistName) {
 
-        Playlist playlist =
+        ResultPlaylist playlist =
                 spotifyService
-                        .createPlaylist(
-                                userId,
-                                playlistName
-                        )
-                        .join();
+                        .createPlaylist(playlistName).block();
+
+        if (playlist == null) {
+            return "Failed to create playlist.";
+        }
 
         return "Playlist created successfully."
                 + "\nName: " + playlist.getName()
