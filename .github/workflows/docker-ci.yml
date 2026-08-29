@@ -54,6 +54,7 @@ jobs:
         run: |
           minikube kubectl -- apply -f k8s/deployment.yaml
           minikube kubectl -- set image deployment/discord-bot discord-bot=${{ secrets.DOCKER_USERNAME }}/discord-bot:latest
+          minikube kubectl -- rollout restart deployment/discord-bot
           minikube kubectl -- rollout status deployment/discord-bot --timeout=180s
 
       - name: Check deployment
