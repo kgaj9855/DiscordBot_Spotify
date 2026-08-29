@@ -45,19 +45,31 @@ jobs:
           password: ${{ secrets.DOCKER_TOKEN }}
 
       - name: Build Docker image
-        run: docker build -t ${{ secrets.DOCKER_USERNAME }}/discord-bot:latest .
+        run: |
+          docker build \
+            -t ${{ secrets.DOCKER_USERNAME }}/discord-bot:${{ github.sha }} \
+            -t ${{ secrets.DOCKER_USERNAME }}/discord-bot:latest \
+            .
 
       - name: Push Docker image
-        run: docker push ${{ secrets.DOCKER_USERNAME }}/discord-bot:latest
+        run: |
+          docker push ${{ secrets.DOCKER_USERNAME }}/discord-bot:${{ github.sha }}
+          docker push ${{ secrets.DOCKER_USERNAME }}/discord-bot:latest
 
       - name: Deploy to Kubernetes
         run: |
           minikube kubectl -- apply -f k8s/deployment.yaml
-          minikube kubectl -- set image deployment/discord-bot discord-bot=${{ secrets.DOCKER_USERNAME }}/discord-bot:latest
-          minikube kubectl -- rollout restart deployment/discord-bot
+
+          minikube kubectl -- set image deployment/discord-bot \
+            discord-bot=${{ secrets.DOCKER_USERNAME }}/discord-bot:${{ github.sha }}
+
           minikube kubectl -- rollout status deployment/discord-bot --timeout=180s
 
       - name: Check deployment
         run: |
           minikube kubectl -- get deployments
           minikube kubectl -- get pods
+
+          echo "Current deployed image:"
+          minikube kubectl -- get deployment discord-bot \
+            -o jsonpath='{.spec.template.spec.containers[0].image}{"\n"}'

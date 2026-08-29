@@ -18,13 +18,15 @@ spec:
 
     spec:
       containers:
-      - name: discord-bot
-        image: ken900809/discord-bot:latest
-        imagePullPolicy: Always
+        - name: discord-bot
 
-        ports:
-          - containerPort: 8080
+          # CI/CD 部署時會用 kubectl set image 更新這個版本
+          image: ken900809/discord-bot:latest
+          imagePullPolicy: Always
 
-        envFrom:
-          - secretRef:
-              name: discord-bot-secret
+          ports:
+            - containerPort: 8080
+
+          envFrom:
+            - secretRef:
+                name: discord-bot-secret
