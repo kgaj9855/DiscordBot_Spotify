@@ -1,5 +1,6 @@
 package com.example.Spotify;
 
+import com.example.DTO.Search.SearchResponse;
 import java.util.Map;
 
 import org.springframework.http.HttpHeaders;
@@ -66,4 +67,22 @@ public class SpotifyAPIClient {
                 .retrieve()
                 .bodyToMono(ResultPlaylist.class);
     }
+
+    //搜尋歌曲或相關資源
+    public Mono<SearchResponse> searchSpotify(String accessToken,String q,String type,int limit,int offset) 
+    {
+
+        return client.get()
+                .uri(uriBuilder -> uriBuilder
+                        .path("/search")
+                        .queryParam("q", q)
+                        .queryParam("type", type)
+                        .queryParam("limit", limit)
+                        .queryParam("offset", offset)
+                        .build())
+                .headers(headers ->
+                        headers.setBearerAuth(accessToken))
+                .retrieve()
+                .bodyToMono(SearchResponse.class);
+     }
 }

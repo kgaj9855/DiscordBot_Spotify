@@ -1,6 +1,7 @@
 package com.example.mcp;
 
 import com.example.DTO.ResultPlaylist;
+import com.example.DTO.Search.SearchResponse;
 import com.example.Spotify.SpotifyService;
 
 import reactor.core.publisher.Mono;
@@ -25,29 +26,25 @@ public class SpotifyTools {
     }
 
     // 搜尋歌曲
-    @Tool(description = "Search Spotify tracks by keyword")
-    public String searchTrack(String keyword) {
+    @Tool(description = """
+        Search Spotify for tracks, artists, albums, or playlists.
 
-        Paging<Track> result =
-                spotifyService
-                        .searchTracks(keyword)
-                        .join();
+        q: Spotify search query. Supports Spotify search filters such as
+        artist:, track:, album:, year:, genre:, and isrc:.
 
-        Track[] tracks = result.getItems();
+        type: Type of item to search for.
+        Supported values: track, artist, album, playlist.
 
-        if (tracks == null || tracks.length == 0) {
-            return "No tracks found.";
-        }
+        limit: Maximum number of results to return.
 
-        Track track = tracks[0];
+        offset: Index of the first result to return.
+        """)
+    public SearchResponse searchSpotify(String q,String type,int limit,int offset)
+    {
 
-        String artistName = track.getArtists().length > 0
-                ? track.getArtists()[0].getName()
-                : "Unknown Artist";
-
-        return "Song: " + track.getName()
-                + "\nArtist: " + artistName
-                + "\nSpotify URI: " + track.getUri();
+        return spotifyService
+                .searchSpotify(q, type, limit, offset)
+                .block();
     }
 
 

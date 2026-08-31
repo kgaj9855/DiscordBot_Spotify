@@ -58,18 +58,33 @@ jobs:
 
       - name: Deploy to Kubernetes
         run: |
+          # 建立 / 更新 Deployment
           minikube kubectl -- apply -f k8s/deployment.yaml
 
+          # 建立 / 更新 Service
+          minikube kubectl -- apply -f k8s/service.yaml
+
+          # 更新 Deployment 使用這次 commit 建立的 image
           minikube kubectl -- set image deployment/discord-bot \
             discord-bot=${{ secrets.DOCKER_USERNAME }}/discord-bot:${{ github.sha }}
 
+          # 等待 Deployment 更新完成
           minikube kubectl -- rollout status deployment/discord-bot --timeout=180s
 
       - name: Check deployment
         run: |
+          echo "=== Deployments ==="
           minikube kubectl -- get deployments
+
+          echo "=== Pods ==="
           minikube kubectl -- get pods
 
-          echo "Current deployed image:"
+          echo "=== Services ==="
+          minikube kubectl -- get services
+
+          echo "=== Discord Bot Service ==="
+          minikube kubectl -- get service discord-bot-service
+
+          echo "=== Current deployed image ==="
           minikube kubectl -- get deployment discord-bot \
             -o jsonpath='{.spec.template.spec.containers[0].image}{"\n"}'

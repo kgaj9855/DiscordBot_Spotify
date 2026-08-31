@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 
 import com.example.DTO.CurrentPlaylist;
 import com.example.DTO.ResultPlaylist;
+import com.example.DTO.Search.SearchResponse;
 
 import reactor.core.publisher.Mono;
 
@@ -176,17 +177,18 @@ public class SpotifyService {
     // ============================================================
     // 5. 搜尋歌曲
     // ============================================================
+    public Mono<SearchResponse> searchSpotify(String q,String type,int limit,int offset) 
+    {
 
-    public CompletableFuture<Paging<Track>> searchTracks(
-            String keyword) {
-
-        return getValidAccessToken()
-                .thenCompose(accessToken ->
-
-                        spotifyApi.searchTracks(keyword)
-                                .limit(10)
-                                .build()
-                                .executeAsync()
+        return Mono.fromFuture(getValidAccessToken())
+                .flatMap(accessToken ->
+                        spotifyAPIClient.searchSpotify(
+                                accessToken,
+                                q,
+                                type,
+                                limit,
+                                offset
+                        )
                 );
     }
 
