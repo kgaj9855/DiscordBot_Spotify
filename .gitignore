@@ -3,6 +3,13 @@
 .env.*
 !.env.example
 
+# TLS certificates and private keys
+*.key
+*.crt
+*.pem
+*.p12
+*.pfx
+
 # Maven output
 target/
 
@@ -15,3 +22,5 @@ logs/
 .vscode/
 *.iml
 .DS_Store
+
+

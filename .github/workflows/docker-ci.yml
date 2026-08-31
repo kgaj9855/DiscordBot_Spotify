@@ -56,13 +56,62 @@ jobs:
           docker push ${{ secrets.DOCKER_USERNAME }}/discord-bot:${{ github.sha }}
           docker push ${{ secrets.DOCKER_USERNAME }}/discord-bot:latest
 
+      - name: Validate Kubernetes YAML
+        run: |
+          minikube kubectl -- apply --dry-run=client -f k8s/deployment.yaml
+          minikube kubectl -- apply --dry-run=client -f k8s/service.yaml
+          minikube kubectl -- apply --dry-run=client -f k8s/gateway.yaml
+          minikube kubectl -- apply --dry-run=client -f k8s/virtual-service.yaml
+
+      - name: Check Istio
+        run: |
+          minikube kubectl -- get pods -n istio-system
+          minikube kubectl -- get service istio-ingressgateway -n istio-system
+
+      - name: Create or update TLS Secret
+        env:
+          DISCORD_TLS_CRT: ${{ secrets.DISCORD_TLS_CRT }}
+          DISCORD_TLS_KEY: ${{ secrets.DISCORD_TLS_KEY }}
+        run: |
+          if [ -z "$DISCORD_TLS_CRT" ]; then
+            echo "DISCORD_TLS_CRT is empty"
+            exit 1
+          fi
+
+          if [ -z "$DISCORD_TLS_KEY" ]; then
+            echo "DISCORD_TLS_KEY is empty"
+            exit 1
+          fi
+
+          printf '%s\n' "$DISCORD_TLS_CRT" > /tmp/discord.crt
+          printf '%s\n' "$DISCORD_TLS_KEY" > /tmp/discord.key
+
+          minikube kubectl -- create secret tls discord-tls \
+            -n istio-system \
+            --cert=/tmp/discord.crt \
+            --key=/tmp/discord.key \
+            --dry-run=client -o yaml \
+            | minikube kubectl -- apply -f -
+
+          rm -f /tmp/discord.crt /tmp/discord.key
+
+      - name: Check TLS Secret
+        run: |
+          minikube kubectl -- get secret discord-tls -n istio-system
+
       - name: Deploy to Kubernetes
         run: |
-          # 建立 / 更新 Deployment
-          minikube kubectl -- apply -f k8s/deployment.yaml
-
           # 建立 / 更新 Service
           minikube kubectl -- apply -f k8s/service.yaml
+
+          # 建立 / 更新 Istio Gateway
+          minikube kubectl -- apply -f k8s/gateway.yaml
+
+          # 建立 / 更新 Istio VirtualService
+          minikube kubectl -- apply -f k8s/virtual-service.yaml
+
+          # 建立 / 更新 Deployment
+          minikube kubectl -- apply -f k8s/deployment.yaml
 
           # 更新 Deployment 使用這次 commit 建立的 image
           minikube kubectl -- set image deployment/discord-bot \
@@ -85,6 +134,19 @@ jobs:
           echo "=== Discord Bot Service ==="
           minikube kubectl -- get service discord-bot-service
 
+          echo "=== Istio Gateway ==="
+          minikube kubectl -- get gateway
+
+          echo "=== Istio VirtualService ==="
+          minikube kubectl -- get virtualservice
+
+          echo "=== Istio Ingress Gateway ==="
+          minikube kubectl -- get service istio-ingressgateway -n istio-system
+
+          echo "=== TLS Secret ==="
+          minikube kubectl -- get secret discord-tls -n istio-system
+
           echo "=== Current deployed image ==="
           minikube kubectl -- get deployment discord-bot \
             -o jsonpath='{.spec.template.spec.containers[0].image}{"\n"}'
+

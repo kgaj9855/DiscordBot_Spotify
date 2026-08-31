@@ -1,0 +1,15 @@
+apiVersion: networking.istio.io/v1
+kind: VirtualService
+metadata:
+  name: discord-bot-route
+spec:
+  hosts:
+    - "discord.test"
+  gateways:
+    - discord-gateway
+  http:
+    - route:
+        - destination:
+            host: discord-bot-service
+            port:
+              number: 8080
