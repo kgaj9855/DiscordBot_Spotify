@@ -197,16 +197,16 @@ public class SpotifyService {
     // ============================================================
 
     public CompletableFuture<Paging<Track>> getTopTracks() {
+    return getValidAccessToken()
+            .thenCompose(accessToken -> {
+                spotifyApi.setAccessToken(accessToken);
 
-        return getValidAccessToken()
-                .thenCompose(accessToken ->
-
-                        spotifyApi.getUsersTopTracks()
-                                .limit(10)
-                                .build()
-                                .executeAsync()
-                );
-    }
+                return spotifyApi.getUsersTopTracks()
+                        .limit(10)
+                        .build()
+                        .executeAsync();
+            });
+}
 
     // ============================================================
     // 7. 取得目前使用者 Playlist

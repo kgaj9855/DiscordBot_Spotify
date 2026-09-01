@@ -12,6 +12,8 @@ import java.net.URI;
 import java.util.stream.Collectors;
 
 import org.springframework.ai.tool.annotation.Tool;
+import org.springframework.ai.tool.annotation.ToolParam;
+import org.springframework.ai.tool.annotation.Tool;
 
 import se.michaelthelin.spotify.model_objects.specification.Track;
 import se.michaelthelin.spotify.model_objects.specification.Paging;
@@ -25,27 +27,63 @@ public class SpotifyTools {
         this.spotifyService = spotifyService;
     }
 
-    // 搜尋歌曲
-    @Tool(description = """
-        Search Spotify for tracks, artists, albums, or playlists.
+        // 搜尋 Spotify
+        @Tool(description = """
+                Search Spotify for tracks, artists, albums, or playlists.
 
-        q: Spotify search query. Supports Spotify search filters such as
-        artist:, track:, album:, year:, genre:, and isrc:.
+                Use Spotify search field filters when the user provides
+                specific search conditions.
+                """)
+        public SearchResponse searchSpotify(
 
-        type: Type of item to search for.
-        Supported values: track, artist, album, playlist.
+                @ToolParam(description = """
+                        Spotify search query.
 
-        limit: Maximum number of results to return.
+                        Supported filters:
+                        - artist:<name>
+                        - track:<name>
+                        - album:<name>
+                        - year:<year>
+                        - year:<start>-<end>
+                        - genre:<genre>
+                        - isrc:<code>
 
-        offset: Index of the first result to return.
-        """)
-    public SearchResponse searchSpotify(String q,String type,int limit,int offset)
-    {
+                        Examples:
+                        - artist:周杰倫 year:2001-2005
+                        - track:Doxy artist:Miles Davis
+                        - artist:Taylor Swift year:2020
+
+                        Do not URL-encode the query.
+                        """)
+                String q,
+
+                @ToolParam(description = """
+                        Type of Spotify item to search.
+
+                        Allowed values:
+                        - track
+                        - artist
+                        - album
+                        - playlist
+                        """)
+                String type,
+
+                @ToolParam(description = """
+                        Maximum number of results to return.
+                        Use 10 unless the user requests otherwise.
+                        """)
+                int limit,
+
+                @ToolParam(description = """
+                        Index of the first result to return.
+                        Use 0 unless pagination is requested.
+                        """)
+                int offset) {
 
         return spotifyService
                 .searchSpotify(q, type, limit, offset)
                 .block();
-    }
+        }
 
 
     // 取得使用者 Top Tracks
