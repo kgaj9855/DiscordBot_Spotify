@@ -19,303 +19,289 @@ import org.springframework.stereotype.Service;
 import com.example.DTO.CurrentPlaylist;
 import com.example.DTO.ResultPlaylist;
 import com.example.DTO.Search.SearchResponse;
+import com.example.DTO.Playback.PlaybackStateResponse;
 
 import reactor.core.publisher.Mono;
 
 @Service
 public class SpotifyService {
 
-    private final SpotifyApi spotifyApi;
-    private final SpotifyAPIClient spotifyAPIClient;
+        private final SpotifyApi spotifyApi;
+        private final SpotifyAPIClient spotifyAPIClient;
 
-    // Access Token 過期時間
-    private Instant accessTokenExpireAt;
+        // Access Token 過期時間
+        private Instant accessTokenExpireAt;
 
-    public SpotifyService(
-            @Value("${SPOTIFY_CLIENT_ID}") String clientId,
-            @Value("${SPOTIFY_CLIENT_SECRET}") String clientSecret,
-            @Value("${SPOTIFY_REDIRECT_URI}") String redirectUri,
-            SpotifyAPIClient spotifyAPIClient) {
+        public SpotifyService(
+                        @Value("${SPOTIFY_CLIENT_ID}") String clientId,
+                        @Value("${SPOTIFY_CLIENT_SECRET}") String clientSecret,
+                        @Value("${SPOTIFY_REDIRECT_URI}") String redirectUri,
+                        SpotifyAPIClient spotifyAPIClient) {
 
-        this.spotifyAPIClient = spotifyAPIClient;
+                this.spotifyAPIClient = spotifyAPIClient;
 
-        this.spotifyApi = new SpotifyApi.Builder()
-                .setClientId(clientId)
-                .setClientSecret(clientSecret)
-                .setRedirectUri(URI.create(redirectUri))
-                .build();
-    }
-
-    // ============================================================
-    // 1. 取得 Spotify OAuth 授權網址
-    // ============================================================
-
-    public CompletableFuture<URI> getAuthorizationUri() {
-
-        AuthorizationCodeUriRequest request =
-                spotifyApi.authorizationCodeUri()
-                        .scope(
-                                "user-read-email " +
-                                "user-top-read " +
-                                "playlist-read-private " +
-                                "playlist-modify-private " +
-                                "playlist-modify-public"
-                        )
-                        .show_dialog(true)
-                        .build();
-
-        return request.executeAsync();
-    }
-
-    // ============================================================
-    // 2. Authorization Code 換 Access Token / Refresh Token
-    // ============================================================
-
-    public CompletableFuture<AuthorizationCodeCredentials> authorize(String code) {
-
-        AuthorizationCodeRequest request =
-                spotifyApi.authorizationCode(code)
-                        .build();
-
-        return request.executeAsync()
-                .thenApply(credentials -> {
-
-                    String accessToken = credentials.getAccessToken();
-                    String refreshToken = credentials.getRefreshToken();
-
-                    spotifyApi.setAccessToken(accessToken);
-
-                    if (refreshToken != null && !refreshToken.isBlank()) {
-                        spotifyApi.setRefreshToken(refreshToken);
-                    }
-
-                    // 提早 60 秒視為過期，避免 API 呼叫途中失效
-                    accessTokenExpireAt = Instant.now()
-                            .plusSeconds(credentials.getExpiresIn() - 60);
-
-                    System.out.println("Spotify authorization successful");
-                    System.out.println(
-                            "Access token exists: "
-                                    + (spotifyApi.getAccessToken() != null)
-                    );
-
-                    System.out.println(
-                            "Refresh token exists: "
-                                    + (spotifyApi.getRefreshToken() != null)
-                    );
-
-                    return credentials;
-                });
-    }
-
-    // ============================================================
-    // 3. Refresh Access Token
-    // ============================================================
-
-    public CompletableFuture<AuthorizationCodeCredentials> refreshAccessToken() {
-
-        String refreshToken = spotifyApi.getRefreshToken();
-
-        if (refreshToken == null || refreshToken.isBlank()) {
-
-            return CompletableFuture.failedFuture(
-                    new IllegalStateException(
-                            "Spotify refresh token 不存在，請重新進行 Spotify OAuth 授權"
-                    )
-            );
+                this.spotifyApi = new SpotifyApi.Builder()
+                                .setClientId(clientId)
+                                .setClientSecret(clientSecret)
+                                .setRedirectUri(URI.create(redirectUri))
+                                .build();
         }
 
-        AuthorizationCodeRefreshRequest request =
-                spotifyApi.authorizationCodeRefresh()
-                        .build();
+        // ============================================================
+        // 1. 取得 Spotify OAuth 授權網址
+        // ============================================================
 
-        return request.executeAsync()
-                .thenApply(credentials -> {
+        public CompletableFuture<URI> getAuthorizationUri() {
 
-                    String newAccessToken = credentials.getAccessToken();
+                AuthorizationCodeUriRequest request = spotifyApi.authorizationCodeUri()
+                                .scope(
+                                                "user-read-email " +
+                                                                "user-top-read " +
+                                                                "playlist-read-private " +
+                                                                "playlist-modify-private " +
+                                                                "playlist-modify-public")
+                                .show_dialog(true)
+                                .build();
 
-                    spotifyApi.setAccessToken(newAccessToken);
-
-                    if (credentials.getRefreshToken() != null
-                            && !credentials.getRefreshToken().isBlank()) {
-
-                        spotifyApi.setRefreshToken(
-                                credentials.getRefreshToken()
-                        );
-                    }
-
-                    accessTokenExpireAt = Instant.now()
-                            .plusSeconds(credentials.getExpiresIn() - 60);
-
-                    System.out.println("Spotify access token refreshed");
-
-                    return credentials;
-                });
-    }
-
-    // ============================================================
-    // 4. 取得目前可使用的 Access Token
-    // ============================================================
-
-    public CompletableFuture<String> getValidAccessToken() {
-
-        String accessToken = spotifyApi.getAccessToken();
-        String refreshToken = spotifyApi.getRefreshToken();
-
-        // 還沒有完成 Spotify OAuth
-        if (refreshToken == null || refreshToken.isBlank()) {
-
-            return CompletableFuture.failedFuture(
-                    new IllegalStateException(
-                            "Spotify 尚未完成授權，沒有 Refresh Token，請先呼叫 authorizeSpotify"
-                    )
-            );
+                return request.executeAsync();
         }
 
-        // Access Token 存在，而且還沒過期
-        if (accessToken != null
-                && !accessToken.isBlank()
-                && accessTokenExpireAt != null
-                && Instant.now().isBefore(accessTokenExpireAt)) {
+        // ============================================================
+        // 2. Authorization Code 換 Access Token / Refresh Token
+        // ============================================================
 
-            return CompletableFuture.completedFuture(accessToken);
+        public CompletableFuture<AuthorizationCodeCredentials> authorize(String code) {
+
+                AuthorizationCodeRequest request = spotifyApi.authorizationCode(code)
+                                .build();
+
+                return request.executeAsync()
+                                .thenApply(credentials -> {
+
+                                        String accessToken = credentials.getAccessToken();
+                                        String refreshToken = credentials.getRefreshToken();
+
+                                        spotifyApi.setAccessToken(accessToken);
+
+                                        if (refreshToken != null && !refreshToken.isBlank()) {
+                                                spotifyApi.setRefreshToken(refreshToken);
+                                        }
+
+                                        // 提早 60 秒視為過期，避免 API 呼叫途中失效
+                                        accessTokenExpireAt = Instant.now()
+                                                        .plusSeconds(credentials.getExpiresIn() - 60);
+
+                                        System.out.println("Spotify authorization successful");
+                                        System.out.println(
+                                                        "Access token exists: "
+                                                                        + (spotifyApi.getAccessToken() != null));
+
+                                        System.out.println(
+                                                        "Refresh token exists: "
+                                                                        + (spotifyApi.getRefreshToken() != null));
+
+                                        return credentials;
+                                });
         }
 
-        // Access Token 不存在或已過期，再 Refresh
-        return refreshAccessToken()
-                .thenApply(AuthorizationCodeCredentials::getAccessToken);
-    }
+        // ============================================================
+        // 3. Refresh Access Token
+        // ============================================================
 
-    // ============================================================
-    // 5. 搜尋 Spotify
-    // ============================================================
+        public CompletableFuture<AuthorizationCodeCredentials> refreshAccessToken() {
 
-    public Mono<SearchResponse> searchSpotify(
-            String q,
-            String type,
-            int limit,
-            int offset) {
+                String refreshToken = spotifyApi.getRefreshToken();
 
-        return Mono.fromFuture(getValidAccessToken())
-                .flatMap(accessToken ->
-                        spotifyAPIClient.searchSpotify(
-                                accessToken,
-                                q,
-                                type,
-                                limit,
-                                offset
-                        )
-                );
-    }
+                if (refreshToken == null || refreshToken.isBlank()) {
 
-    // ============================================================
-    // 6. 取得使用者 Top Tracks
-    // ============================================================
+                        return CompletableFuture.failedFuture(
+                                        new IllegalStateException(
+                                                        "Spotify refresh token 不存在，請重新進行 Spotify OAuth 授權"));
+                }
 
-    public CompletableFuture<Paging<Track>> getTopTracks() {
+                AuthorizationCodeRefreshRequest request = spotifyApi.authorizationCodeRefresh()
+                                .build();
 
-        return getValidAccessToken()
-                .thenCompose(accessToken -> {
+                return request.executeAsync()
+                                .thenApply(credentials -> {
 
-                    spotifyApi.setAccessToken(accessToken);
+                                        String newAccessToken = credentials.getAccessToken();
 
-                    return spotifyApi
-                            .getUsersTopTracks()
-                            .limit(10)
-                            .build()
-                            .executeAsync();
-                });
-    }
+                                        spotifyApi.setAccessToken(newAccessToken);
 
-    // ============================================================
-    // 7. 取得目前使用者 Playlist
-    // ============================================================
+                                        if (credentials.getRefreshToken() != null
+                                                        && !credentials.getRefreshToken().isBlank()) {
 
-    public Mono<CurrentPlaylist> getCurrentPlaylist(
-            Integer limit,
-            Integer offset) {
+                                                spotifyApi.setRefreshToken(
+                                                                credentials.getRefreshToken());
+                                        }
 
-        int finalLimit = (limit != null) ? limit : 20;
-        int finalOffset = (offset != null) ? offset : 0;
+                                        accessTokenExpireAt = Instant.now()
+                                                        .plusSeconds(credentials.getExpiresIn() - 60);
 
-        return Mono.fromFuture(getValidAccessToken())
-                .flatMap(accessToken ->
-                        spotifyAPIClient.getCurrentPlaylist(
-                                accessToken,
-                                finalLimit,
-                                finalOffset
-                        )
-                );
-    }
+                                        System.out.println("Spotify access token refreshed");
 
-    // ============================================================
-    // 8. 建立 Playlist
-    // ============================================================
+                                        return credentials;
+                                });
+        }
 
-    public Mono<ResultPlaylist> createPlaylist(
-            String playlistName) {
+        // ============================================================
+        // 4. 取得目前可使用的 Access Token
+        // ============================================================
 
-        return Mono.fromFuture(getValidAccessToken())
-                .flatMap(accessToken ->
-                        spotifyAPIClient.createPlaylist(
-                                accessToken,
-                                playlistName
-                        )
-                );
-    }
+        public CompletableFuture<String> getValidAccessToken() {
 
-    // ============================================================
-    // 9. 加歌曲到 Playlist
-    // ============================================================
+                String accessToken = spotifyApi.getAccessToken();
+                String refreshToken = spotifyApi.getRefreshToken();
 
-    public CompletableFuture<SnapshotResult> addTrackToPlaylist(
-            String playlistId,
-            String trackUri) {
+                // 還沒有完成 Spotify OAuth
+                if (refreshToken == null || refreshToken.isBlank()) {
 
-        return getValidAccessToken()
-                .thenCompose(accessToken -> {
+                        return CompletableFuture.failedFuture(
+                                        new IllegalStateException(
+                                                        "Spotify 尚未完成授權，沒有 Refresh Token，請先呼叫 authorizeSpotify"));
+                }
 
-                    // 這行原本漏掉了
-                    spotifyApi.setAccessToken(accessToken);
+                // Access Token 存在，而且還沒過期
+                if (accessToken != null
+                                && !accessToken.isBlank()
+                                && accessTokenExpireAt != null
+                                && Instant.now().isBefore(accessTokenExpireAt)) {
 
-                    String[] uris = {
-                            trackUri
-                    };
+                        return CompletableFuture.completedFuture(accessToken);
+                }
 
-                    return spotifyApi
-                            .addItemsToPlaylist(
-                                    playlistId,
-                                    uris
-                            )
-                            .build()
-                            .executeAsync();
-                });
-    }
+                // Access Token 不存在或已過期，再 Refresh
+                return refreshAccessToken()
+                                .thenApply(AuthorizationCodeCredentials::getAccessToken);
+        }
 
-    // ============================================================
-    // 10. Token 狀態檢查
-    // ============================================================
+        // ============================================================
+        // 5. 搜尋 Spotify
+        // ============================================================
 
-    public String getTokenStatus() {
+        public Mono<SearchResponse> searchSpotify(
+                        String q,
+                        String type,
+                        int limit,
+                        int offset) {
 
-        boolean accessTokenExists =
-                spotifyApi.getAccessToken() != null
-                        && !spotifyApi.getAccessToken().isBlank();
+                return Mono.fromFuture(getValidAccessToken())
+                                .flatMap(accessToken -> spotifyAPIClient.searchSpotify(
+                                                accessToken,
+                                                q,
+                                                type,
+                                                limit,
+                                                offset));
+        }
 
-        boolean refreshTokenExists =
-                spotifyApi.getRefreshToken() != null
-                        && !spotifyApi.getRefreshToken().isBlank();
+        // ============================================================
+        // 6. 取得使用者 Top Tracks
+        // ============================================================
 
-        boolean accessTokenValid =
-                accessTokenExists
-                        && accessTokenExpireAt != null
-                        && Instant.now().isBefore(accessTokenExpireAt);
+        public CompletableFuture<Paging<Track>> getTopTracks() {
 
-        return "Access Token exists: "
-                + accessTokenExists
-                + "\nRefresh Token exists: "
-                + refreshTokenExists
-                + "\nAccess Token valid: "
-                + accessTokenValid;
-    }
+                return getValidAccessToken()
+                                .thenCompose(accessToken -> {
+
+                                        spotifyApi.setAccessToken(accessToken);
+
+                                        return spotifyApi
+                                                        .getUsersTopTracks()
+                                                        .limit(10)
+                                                        .build()
+                                                        .executeAsync();
+                                });
+        }
+
+        // ============================================================
+        // 7. 取得目前使用者 Playlist
+        // ============================================================
+
+        public Mono<CurrentPlaylist> getCurrentPlaylist(
+                        Integer limit,
+                        Integer offset) {
+
+                int finalLimit = (limit != null) ? limit : 20;
+                int finalOffset = (offset != null) ? offset : 0;
+
+                return Mono.fromFuture(getValidAccessToken())
+                                .flatMap(accessToken -> spotifyAPIClient.getCurrentPlaylist(
+                                                accessToken,
+                                                finalLimit,
+                                                finalOffset));
+        }
+
+        // ============================================================
+        // 8. 建立 Playlist
+        // ============================================================
+
+        public Mono<ResultPlaylist> createPlaylist(
+                        String playlistName) {
+
+                return Mono.fromFuture(getValidAccessToken())
+                                .flatMap(accessToken -> spotifyAPIClient.createPlaylist(
+                                                accessToken,
+                                                playlistName));
+        }
+
+        // ============================================================
+        // 9. 加歌曲到 Playlist
+        // ============================================================
+
+        public CompletableFuture<SnapshotResult> addTrackToPlaylist(
+                        String playlistId,
+                        String trackUri) {
+
+                return getValidAccessToken()
+                                .thenCompose(accessToken -> {
+
+                                        // 這行原本漏掉了
+                                        spotifyApi.setAccessToken(accessToken);
+
+                                        String[] uris = {
+                                                        trackUri
+                                        };
+
+                                        return spotifyApi
+                                                        .addItemsToPlaylist(
+                                                                        playlistId,
+                                                                        uris)
+                                                        .build()
+                                                        .executeAsync();
+                                });
+        }
+
+        // ============================================================
+        // 10. 取得使用者聽歌狀態
+        // ============================================================
+        public Mono<PlaybackStateResponse> getCurrentPlayback() {
+
+                return Mono.fromFuture(getValidAccessToken())
+                                .flatMap(accessToken -> spotifyAPIClient.getcurrentPlayback(
+                                                accessToken));
+        }
+        // ============================================================
+        // 11. Token 狀態檢查
+        // ============================================================
+
+        public String getTokenStatus() {
+
+                boolean accessTokenExists = spotifyApi.getAccessToken() != null
+                                && !spotifyApi.getAccessToken().isBlank();
+
+                boolean refreshTokenExists = spotifyApi.getRefreshToken() != null
+                                && !spotifyApi.getRefreshToken().isBlank();
+
+                boolean accessTokenValid = accessTokenExists
+                                && accessTokenExpireAt != null
+                                && Instant.now().isBefore(accessTokenExpireAt);
+
+                return "Access Token exists: "
+                                + accessTokenExists
+                                + "\nRefresh Token exists: "
+                                + refreshTokenExists
+                                + "\nAccess Token valid: "
+                                + accessTokenValid;
+        }
 }
