@@ -59,7 +59,7 @@ public class SpotifyService {
                                                                 "user-top-read " +
                                                                 "playlist-read-private " +
                                                                 "playlist-modify-private " +
-                                                                "playlist-modify-public" +  
+                                                                "playlist-modify-public " +
                                                                 "user-read-playback-state")
                                 .show_dialog(true)
                                 .build();
