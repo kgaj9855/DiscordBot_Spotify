@@ -25,6 +25,8 @@ public class PlaybackStateResponse {
 
     @JsonProperty("currently_playing_type")
     private String currentlyPlayingType;
+    
+    private ItemDto item;
 
     public DeviceDto getDevice() {
         return device;
@@ -88,5 +90,13 @@ public class PlaybackStateResponse {
 
     public void setCurrentlyPlayingType(String currentlyPlayingType) {
         this.currentlyPlayingType = currentlyPlayingType;
+    }
+
+    public ItemDto getItem() {
+        return item;
+    }
+
+    public void setItem(ItemDto item) {
+        this.item = item;
     }
 }
