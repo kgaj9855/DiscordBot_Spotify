@@ -199,10 +199,10 @@ public class SpotifyTools {
 
         @Tool(description = """
                         Toggle the user's current Spotify playback state.
-                        If playback is paused, resume playback.
+                        If playback is paused, resume and start playback.
                         Returns the Spotify API HTTP status code.
                         """)
         public int resumeSpotifyPlayback() {
-                return spotifyService.pausePlayer().block();
+                return spotifyService.resumePlayer().block();
         }
 }
