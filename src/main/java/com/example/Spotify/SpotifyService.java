@@ -60,7 +60,8 @@ public class SpotifyService {
                                                                 "playlist-read-private " +
                                                                 "playlist-modify-private " +
                                                                 "playlist-modify-public " +
-                                                                "user-read-playback-state")
+                                                                "user-read-playback-state " +
+                                                                "user-modify-playback-state")
                                 .show_dialog(true)
                                 .build();
 
@@ -304,5 +305,18 @@ public class SpotifyService {
                                 + refreshTokenExists
                                 + "\nAccess Token valid: "
                                 + accessTokenValid;
+        }
+
+        // ============================================================
+        // 12. 播放和停止播放
+        // ============================================================
+
+        public Mono<Integer> pausePlayer() {
+                return Mono.fromFuture(getValidAccessToken())
+                                .flatMap(accessToken -> spotifyAPIClient.pausePlayer(accessToken));
+        }
+        public Mono<Integer> resumePlayer() {
+                return Mono.fromFuture(getValidAccessToken())
+                                .flatMap(accessToken -> spotifyAPIClient.resumePlayer(accessToken));
         }
 }

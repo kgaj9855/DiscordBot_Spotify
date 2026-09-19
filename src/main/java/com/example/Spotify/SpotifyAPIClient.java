@@ -92,4 +92,25 @@ public class SpotifyAPIClient {
                                 .retrieve()
                                 .bodyToMono(PlaybackStateResponse.class);
         }
+
+        // 暫停歌曲播放歌曲
+        public Mono<Integer> pausePlayer(String accessToken) {
+                return client.put()
+                                .uri(uriBuilder -> uriBuilder
+                                                .path("/me/player/pause")
+                                                .build())
+                                .headers(headers -> headers.setBearerAuth(accessToken))
+                                .retrieve()
+                                .toBodilessEntity()
+                                .map(response -> response.getStatusCode().value());
+        }
+        // 恢復目前裝置的播放，不指定歌曲，沿用 Spotify 的播放進度。
+        public Mono<Integer> resumePlayer(String accessToken) {
+                return client.put()
+                                .uri("/me/player/play")
+                                .headers(headers -> headers.setBearerAuth(accessToken))
+                                .retrieve()
+                                .toBodilessEntity()
+                                .map(response -> response.getStatusCode().value());
+        }
 }

@@ -21,7 +21,7 @@ import se.michaelthelin.spotify.model_objects.specification.Paging;
 @Component
 public class SpotifyTools {
 
-    private final SpotifyService spotifyService;
+        private final SpotifyService spotifyService;
 
         public SpotifyTools(SpotifyService spotifyService) {
                 this.spotifyService = spotifyService;
@@ -186,5 +186,15 @@ public class SpotifyTools {
                 } catch (Exception e) {
                         return "產生 Spotify 授權網址失敗：" + e.getMessage();
                 }
+        }
+
+        @Tool(description = """
+                        Toggle the user's current Spotify playback state.
+                        If a track is playing, pause playback.
+                        If playback is paused, resume playback.
+                        Returns the Spotify API HTTP status code.
+                        """)
+        public int toggleSpotifyPlayback() {
+                return spotifyService.pausePlayer().block();
         }
 }
