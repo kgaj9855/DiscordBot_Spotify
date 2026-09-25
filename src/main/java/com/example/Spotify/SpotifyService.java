@@ -11,6 +11,7 @@ import se.michaelthelin.spotify.requests.authorization.authorization_code.Author
 
 import java.net.URI;
 import java.time.Instant;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -20,11 +21,25 @@ import com.example.DTO.CurrentPlaylist;
 import com.example.DTO.ResultPlaylist;
 import com.example.DTO.Search.SearchResponse;
 import com.example.DTO.Playback.PlaybackStateResponse;
+import com.example.DTO.RecentlyPlayed.RecentlyPlayedResponse;
 
 import reactor.core.publisher.Mono;
 
 @Service
 public class SpotifyService {
+
+        static final String AUTHORIZATION_SCOPES = String.join(" ",
+                        "user-read-email",
+                        "user-top-read",
+                        "playlist-read-private",
+                        "playlist-modify-private",
+                        "playlist-modify-public",
+                        "user-read-playback-state",
+                        "user-modify-playback-state",
+                        "user-read-recently-played");
+
+        private static final int DEFAULT_RECENTLY_PLAYED_LIMIT = 20;
+        private static final int MAX_RECENTLY_PLAYED_LIMIT = 50;
 
         private final SpotifyApi spotifyApi;
         private final SpotifyAPIClient spotifyAPIClient;
@@ -54,14 +69,7 @@ public class SpotifyService {
         public CompletableFuture<URI> getAuthorizationUri() {
 
                 AuthorizationCodeUriRequest request = spotifyApi.authorizationCodeUri()
-                                .scope(
-                                                "user-read-email " +
-                                                                "user-top-read " +
-                                                                "playlist-read-private " +
-                                                                "playlist-modify-private " +
-                                                                "playlist-modify-public " +
-                                                                "user-read-playback-state " +
-                                                                "user-modify-playback-state")
+                                .scope(AUTHORIZATION_SCOPES)
                                 .show_dialog(true)
                                 .build();
 
@@ -190,7 +198,7 @@ public class SpotifyService {
 
                 return Mono.fromFuture(getValidAccessToken())
                                 .flatMap(accessToken -> spotifyAPIClient.searchSpotify(
-                                                accessToken,
+                                                bearer(accessToken),
                                                 q,
                                                 type,
                                                 limit,
@@ -229,7 +237,7 @@ public class SpotifyService {
 
                 return Mono.fromFuture(getValidAccessToken())
                                 .flatMap(accessToken -> spotifyAPIClient.getCurrentPlaylist(
-                                                accessToken,
+                                                bearer(accessToken),
                                                 finalLimit,
                                                 finalOffset));
         }
@@ -243,8 +251,11 @@ public class SpotifyService {
 
                 return Mono.fromFuture(getValidAccessToken())
                                 .flatMap(accessToken -> spotifyAPIClient.createPlaylist(
-                                                accessToken,
-                                                playlistName));
+                                                bearer(accessToken),
+                                                Map.of(
+                                                                "name", playlistName,
+                                                                "public", false,
+                                                                "description", "Created by Discord Bot")));
         }
 
         // ============================================================
@@ -280,8 +291,8 @@ public class SpotifyService {
         public Mono<PlaybackStateResponse> getCurrentPlayback() {
 
                 return Mono.fromFuture(getValidAccessToken())
-                                .flatMap(accessToken -> spotifyAPIClient.getcurrentPlayback(
-                                                accessToken));
+                                .flatMap(accessToken -> spotifyAPIClient.getCurrentPlayback(
+                                                bearer(accessToken)));
         }
         // ============================================================
         // 11. Token 狀態檢查
@@ -313,10 +324,44 @@ public class SpotifyService {
 
         public Mono<Integer> pausePlayer() {
                 return Mono.fromFuture(getValidAccessToken())
-                                .flatMap(accessToken -> spotifyAPIClient.pausePlayer(accessToken));
+                                .flatMap(accessToken -> spotifyAPIClient.pausePlayer(bearer(accessToken)))
+                                .map(response -> response.getStatusCode().value());
         }
         public Mono<Integer> resumePlayer() {
                 return Mono.fromFuture(getValidAccessToken())
-                                .flatMap(accessToken -> spotifyAPIClient.resumePlayer(accessToken));
+                                .flatMap(accessToken -> spotifyAPIClient.resumePlayer(bearer(accessToken)))
+                                .map(response -> response.getStatusCode().value());
+        }
+
+        // ============================================================
+        // 13. 取得最近播放紀錄
+        // ============================================================
+
+        public Mono<RecentlyPlayedResponse> getRecentlyPlayed(Integer limit) {
+                int finalLimit = limit == null ? DEFAULT_RECENTLY_PLAYED_LIMIT : limit;
+                if (finalLimit < 1 || finalLimit > MAX_RECENTLY_PLAYED_LIMIT) {
+                        return Mono.error(new IllegalArgumentException(
+                                        "Recently played limit must be between 1 and 50"));
+                }
+
+                return Mono.fromFuture(getValidAccessToken())
+                                .flatMap(accessToken -> requestRecentlyPlayed(accessToken, finalLimit))
+                                .onErrorResume(SpotifyApiException.class, error -> {
+                                        if (!error.isUnauthorized()) {
+                                                return Mono.error(error);
+                                        }
+                                        return Mono.fromFuture(refreshAccessToken())
+                                                        .flatMap(credentials -> requestRecentlyPlayed(
+                                                                        credentials.getAccessToken(), finalLimit));
+                                })
+                                .switchIfEmpty(Mono.just(RecentlyPlayedResponse.empty()));
+        }
+
+        private Mono<RecentlyPlayedResponse> requestRecentlyPlayed(String accessToken, int limit) {
+                return spotifyAPIClient.getRecentlyPlayed(bearer(accessToken), limit);
+        }
+
+        private static String bearer(String accessToken) {
+                return "Bearer " + accessToken;
         }
 }

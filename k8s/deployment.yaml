@@ -30,3 +30,14 @@ spec:
           envFrom:
             - secretRef:
                 name: discord-bot-secret
+
+          env:
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://postgresql:5432/spotify
+            - name: SPRING_DATASOURCE_USERNAME
+              value: karta40213
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secret
+                  key: POSTGRES_PASSWORD

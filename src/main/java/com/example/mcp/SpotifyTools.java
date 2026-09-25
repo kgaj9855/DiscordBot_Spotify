@@ -2,8 +2,11 @@ package com.example.mcp;
 
 import com.example.DTO.ResultPlaylist;
 import com.example.DTO.Playback.PlaybackStateResponse;
+import com.example.DTO.RecentlyPlayed.RecentlyPlayedResponse;
+import com.example.DTO.RecentlyPlayed.RecentlyPlayedToolResponse;
 import com.example.DTO.Search.SearchResponse;
 import com.example.Spotify.SpotifyService;
+import com.example.playerhistory.service.PlayerHistoryService;
 
 import reactor.core.publisher.Mono;
 
@@ -22,9 +25,13 @@ import se.michaelthelin.spotify.model_objects.specification.Paging;
 public class SpotifyTools {
 
         private final SpotifyService spotifyService;
+        private final PlayerHistoryService playerHistoryService;
 
-        public SpotifyTools(SpotifyService spotifyService) {
+        public SpotifyTools(
+                        SpotifyService spotifyService,
+                        PlayerHistoryService playerHistoryService) {
                 this.spotifyService = spotifyService;
+                this.playerHistoryService = playerHistoryService;
         }
 
         // 搜尋 Spotify
@@ -204,5 +211,34 @@ public class SpotifyTools {
                         """)
         public int resumeSpotifyPlayback() {
                 return spotifyService.resumePlayer().block();
+        }
+
+        @Tool(description = """
+                        Get the current user's recently played Spotify tracks and synchronize them to PostgreSQL.
+
+                        Use this tool when the user asks about songs they recently listened to,
+                        recent playback, Spotify recently played history, or phrases such as:
+                        「最近聽過的歌曲」、「我最近聽了什麼」、「Spotify 最近播放」、
+                        「最近播放紀錄」或「幫我看看最近聽什麼歌」。
+
+                        The response contains a bounded list of tracks plus fetchedCount and savedCount.
+                        Repeated synchronization does not insert the same track_id and played_at twice.
+                        """)
+        public RecentlyPlayedToolResponse getRecentlyPlayed(
+                        @ToolParam(description = """
+                                        Maximum number of recent plays to fetch from Spotify.
+                                        Optional; defaults to 20. Allowed range is 1 to 50.
+                                        """, required = false) Integer limit) {
+
+                RecentlyPlayedResponse response = spotifyService
+                                .getRecentlyPlayed(limit)
+                                .block();
+
+                RecentlyPlayedResponse safeResponse = response == null
+                                ? RecentlyPlayedResponse.empty()
+                                : response;
+                int savedCount = playerHistoryService.syncRecentlyPlayed(safeResponse.items());
+
+                return RecentlyPlayedToolResponse.from(safeResponse.items(), savedCount);
         }
 }

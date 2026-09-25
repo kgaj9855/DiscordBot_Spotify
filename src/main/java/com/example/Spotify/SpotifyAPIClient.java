@@ -4,113 +4,59 @@ import java.util.Map;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.stereotype.Component;
-import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.service.annotation.GetExchange;
+import org.springframework.web.service.annotation.HttpExchange;
+import org.springframework.web.service.annotation.PostExchange;
+import org.springframework.web.service.annotation.PutExchange;
 
 import com.example.DTO.CurrentPlaylist;
 import com.example.DTO.ResultPlaylist;
 import com.example.DTO.Playback.PlaybackStateResponse;
+import com.example.DTO.RecentlyPlayed.RecentlyPlayedResponse;
 import com.example.DTO.Search.SearchResponse;
 
 import reactor.core.publisher.Mono;
 
-@Component
-public class SpotifyAPIClient {
+@HttpExchange(accept = MediaType.APPLICATION_JSON_VALUE)
+public interface SpotifyAPIClient {
 
-        private final WebClient client;
+    @GetExchange("/me/playlists")
+    Mono<CurrentPlaylist> getCurrentPlaylist(
+            @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization,
+            @RequestParam("limit") int limit,
+            @RequestParam("offset") int offset);
 
-        // 建立 Spotify API 的 HTTP Client
-        public SpotifyAPIClient() {
-                this.client = WebClient.builder()
-                                .baseUrl("https://api.spotify.com/v1")
-                                .defaultHeader(
-                                                HttpHeaders.CONTENT_TYPE,
-                                                MediaType.APPLICATION_JSON_VALUE)
-                                .build();
-        }
+    @PostExchange(value = "/me/playlists", contentType = MediaType.APPLICATION_JSON_VALUE)
+    Mono<ResultPlaylist> createPlaylist(
+            @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization,
+            @RequestBody Map<String, Object> requestBody);
 
-        // 取得playlists
-        public Mono<CurrentPlaylist> getCurrentPlaylist(String accessToken, int limit, int offset) {
+    @GetExchange("/search")
+    Mono<SearchResponse> searchSpotify(
+            @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization,
+            @RequestParam("q") String query,
+            @RequestParam("type") String type,
+            @RequestParam("limit") int limit,
+            @RequestParam("offset") int offset);
 
-                return client.get()
-                                .uri(uriBuilder -> uriBuilder
-                                                .path("/me/playlists")
-                                                .queryParam("limit", limit)
-                                                .queryParam("offset", offset)
-                                                .build())
-                                .headers(h -> h.setBearerAuth(accessToken))
-                                .retrieve()
-                                .bodyToMono(CurrentPlaylist.class);
-        }
+    @GetExchange("/me/player")
+    Mono<PlaybackStateResponse> getCurrentPlayback(
+            @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization);
 
-        // 建立 Playlist
-        public Mono<ResultPlaylist> createPlaylist(
-                        String accessToken,
-                        String playlistName) {
+    @PutExchange("/me/player/pause")
+    Mono<ResponseEntity<Void>> pausePlayer(
+            @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization);
 
-                // 要傳給 Spotify 的 JSON Body
-                Map<String, Object> requestBody = Map.of(
-                                "name", playlistName,
-                                "public", false,
-                                "description", "Created by Discord Bot");
+    @PutExchange("/me/player/play")
+    Mono<ResponseEntity<Void>> resumePlayer(
+            @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization);
 
-                // 發送 POST Request
-                return client.post()
-                                .uri("/me/playlists")
-                                .headers(headers -> {
-                                        headers.setBearerAuth(accessToken);
-                                })
-                                .bodyValue(requestBody)
-                                .retrieve()
-                                .bodyToMono(ResultPlaylist.class);
-        }
-
-        // 搜尋歌曲或相關資源
-        public Mono<SearchResponse> searchSpotify(String accessToken, String q, String type, int limit, int offset) {
-
-                return client.get()
-                                .uri(uriBuilder -> uriBuilder
-                                                .path("/search")
-                                                .queryParam("q", q)
-                                                .queryParam("type", type)
-                                                .queryParam("limit", limit)
-                                                .queryParam("offset", offset)
-                                                .build())
-                                .headers(headers -> headers.setBearerAuth(accessToken))
-                                .retrieve()
-                                .bodyToMono(SearchResponse.class);
-        }
-
-        // 搜尋目前使用者的聽歌狀態
-        public Mono<PlaybackStateResponse> getcurrentPlayback(String accessToken) {
-
-                return client.get()
-                                .uri(uriBuilder -> uriBuilder
-                                                .path("/me/player")
-                                                .build())
-                                .headers(headers -> headers.setBearerAuth(accessToken))
-                                .retrieve()
-                                .bodyToMono(PlaybackStateResponse.class);
-        }
-
-        // 暫停歌曲播放歌曲
-        public Mono<Integer> pausePlayer(String accessToken) {
-                return client.put()
-                                .uri(uriBuilder -> uriBuilder
-                                                .path("/me/player/pause")
-                                                .build())
-                                .headers(headers -> headers.setBearerAuth(accessToken))
-                                .retrieve()
-                                .toBodilessEntity()
-                                .map(response -> response.getStatusCode().value());
-        }
-        // 恢復目前裝置的播放，不指定歌曲，沿用 Spotify 的播放進度。
-        public Mono<Integer> resumePlayer(String accessToken) {
-                return client.put()
-                                .uri("/me/player/play")
-                                .headers(headers -> headers.setBearerAuth(accessToken))
-                                .retrieve()
-                                .toBodilessEntity()
-                                .map(response -> response.getStatusCode().value());
-        }
+    @GetExchange("/me/player/recently-played")
+    Mono<RecentlyPlayedResponse> getRecentlyPlayed(
+            @RequestHeader(HttpHeaders.AUTHORIZATION) String authorization,
+            @RequestParam("limit") int limit);
 }

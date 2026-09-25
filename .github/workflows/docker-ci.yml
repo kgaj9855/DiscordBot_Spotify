@@ -58,6 +58,7 @@ jobs:
 
       - name: Validate Kubernetes YAML
         run: |
+          minikube kubectl -- apply --dry-run=client -f k8s/postgresql-deployment.yaml
           minikube kubectl -- apply --dry-run=client -f k8s/deployment.yaml
           minikube kubectl -- apply --dry-run=client -f k8s/service.yaml
           minikube kubectl -- apply --dry-run=client -f k8s/gateway.yaml
@@ -98,6 +99,24 @@ jobs:
       - name: Check TLS Secret
         run: |
           minikube kubectl -- get secret discord-tls -n istio-system
+
+      - name: Create PostgreSQL Secret
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$POSTGRES_PASSWORD"
+
+          printf '%s' "$POSTGRES_PASSWORD" |
+            minikube kubectl -- create secret generic postgresql-secret \
+              --from-file=POSTGRES_PASSWORD=/dev/stdin \
+              --dry-run=client -o yaml |
+            minikube kubectl -- apply -f -
+
+      - name: Deploy PostgreSQL
+        run: |
+          minikube kubectl -- apply -f k8s/postgresql-deployment.yaml
+          minikube kubectl -- rollout status deployment/postgresql --timeout=300s
 
       - name: Deploy to Kubernetes
         run: |
@@ -149,4 +168,3 @@ jobs:
           echo "=== Current deployed image ==="
           minikube kubectl -- get deployment discord-bot \
             -o jsonpath='{.spec.template.spec.containers[0].image}{"\n"}'
-
