@@ -138,6 +138,21 @@ jobs:
 
           # 等待 Deployment 更新完成
           minikube kubectl -- rollout status deployment/discord-bot --timeout=180s
+      
+      - name: Verify pgvector
+        run: |
+          VECTOR_VERSION="$(
+            minikube kubectl -- exec deployment/postgresql -- \
+              psql -U karta40213 -d spotify -tAc \
+              "SELECT extversion FROM pg_extension WHERE extname = 'vector';"
+          )"
+
+          if [ -z "$VECTOR_VERSION" ]; then
+            echo "pgvector extension is not enabled"
+            exit 1
+          fi
+
+          echo "pgvector version: $VECTOR_VERSION"
 
       - name: Check deployment
         run: |

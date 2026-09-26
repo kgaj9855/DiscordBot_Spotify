@@ -32,7 +32,9 @@ spec:
       terminationGracePeriodSeconds: 60
       containers:
         - name: postgresql
-          image: postgres:16.15
+          # PostgreSQL 16 with the pgvector extension files preinstalled.
+          # Flyway enables the extension with CREATE EXTENSION IF NOT EXISTS vector.
+          image: pgvector/pgvector:0.8.6-pg16-bookworm
           imagePullPolicy: IfNotPresent
           ports:
             - name: postgres
