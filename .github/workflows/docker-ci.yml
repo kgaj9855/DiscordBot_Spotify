@@ -118,6 +118,25 @@ jobs:
           minikube kubectl -- apply -f k8s/postgresql-deployment.yaml
           minikube kubectl -- rollout status deployment/postgresql --timeout=300s
 
+      - name: Enable pgvector
+        run: |
+          set -euo pipefail
+
+          DB_SUPERUSER="$(
+            minikube kubectl -- exec deployment/postgresql -- \
+              psql -U karta40213 -d spotify -tAc \
+              "SELECT rolname FROM pg_roles WHERE rolsuper ORDER BY rolname LIMIT 1;"
+          )"
+
+          if [ -z "$DB_SUPERUSER" ]; then
+            echo "No PostgreSQL superuser is available to enable pgvector"
+            exit 1
+          fi
+
+          minikube kubectl -- exec deployment/postgresql -- \
+            psql -U "$DB_SUPERUSER" -d spotify -v ON_ERROR_STOP=1 -c \
+            "CREATE EXTENSION IF NOT EXISTS vector;"
+
       - name: Deploy to Kubernetes
         run: |
           # 建立 / 更新 Service
