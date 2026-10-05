@@ -117,6 +117,7 @@ jobs:
         env:
           OLLAMA_BASE_URL: ${{ secrets.OLLAMA_BASE_URL }}
           OLLAMA_EMBEDDING_MODEL: ${{ secrets.OLLAMA_EMBEDDING_MODEL }}
+          OLLAMA_RESPONSE_TIMEOUT: ${{ secrets.OLLAMA_RESPONSE_TIMEOUT }}
         run: |
           set -euo pipefail
 
@@ -130,9 +131,15 @@ jobs:
             exit 1
           fi
 
+          if [ -z "$OLLAMA_RESPONSE_TIMEOUT" ]; then
+            echo "OLLAMA_RESPONSE_TIMEOUT is empty"
+            exit 1
+          fi
+
           minikube kubectl -- create secret generic ollama-secret \
             --from-literal=OLLAMA_BASE_URL="$OLLAMA_BASE_URL" \
             --from-literal=OLLAMA_EMBEDDING_MODEL="$OLLAMA_EMBEDDING_MODEL" \
+            --from-literal=OLLAMA_RESPONSE_TIMEOUT="$OLLAMA_RESPONSE_TIMEOUT" \
             --dry-run=client -o yaml |
             minikube kubectl -- apply -f -
 
