@@ -113,6 +113,29 @@ jobs:
               --dry-run=client -o yaml |
             minikube kubectl -- apply -f -
 
+      - name: Create or update Ollama Secret
+        env:
+          OLLAMA_BASE_URL: ${{ secrets.OLLAMA_BASE_URL }}
+          OLLAMA_EMBEDDING_MODEL: ${{ secrets.OLLAMA_EMBEDDING_MODEL }}
+        run: |
+          set -euo pipefail
+
+          if [ -z "$OLLAMA_BASE_URL" ]; then
+            echo "OLLAMA_BASE_URL is empty"
+            exit 1
+          fi
+
+          if [ -z "$OLLAMA_EMBEDDING_MODEL" ]; then
+            echo "OLLAMA_EMBEDDING_MODEL is empty"
+            exit 1
+          fi
+
+          minikube kubectl -- create secret generic ollama-secret \
+            --from-literal=OLLAMA_BASE_URL="$OLLAMA_BASE_URL" \
+            --from-literal=OLLAMA_EMBEDDING_MODEL="$OLLAMA_EMBEDDING_MODEL" \
+            --dry-run=client -o yaml |
+            minikube kubectl -- apply -f -
+
       - name: Deploy PostgreSQL
         run: |
           minikube kubectl -- apply -f k8s/postgresql-deployment.yaml

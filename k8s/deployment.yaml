@@ -30,6 +30,8 @@ spec:
           envFrom:
             - secretRef:
                 name: discord-bot-secret
+            - secretRef:
+                name: ollama-secret
 
           env:
             - name: SPRING_DATASOURCE_URL

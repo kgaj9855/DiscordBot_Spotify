@@ -7,6 +7,8 @@ import com.example.DTO.RecentlyPlayed.RecentlyPlayedToolResponse;
 import com.example.DTO.Search.SearchResponse;
 import com.example.Spotify.SpotifyService;
 import com.example.playerhistory.service.PlayerHistoryService;
+import com.example.song.DTO.SongSemanticSearchResponse;
+import com.example.song.service.SongSemanticSearchService;
 
 import reactor.core.publisher.Mono;
 
@@ -26,12 +28,15 @@ public class SpotifyTools {
 
         private final SpotifyService spotifyService;
         private final PlayerHistoryService playerHistoryService;
+        private final SongSemanticSearchService songSemanticSearchService;
 
         public SpotifyTools(
                         SpotifyService spotifyService,
-                        PlayerHistoryService playerHistoryService) {
+                        PlayerHistoryService playerHistoryService,
+                        SongSemanticSearchService songSemanticSearchService) {
                 this.spotifyService = spotifyService;
                 this.playerHistoryService = playerHistoryService;
+                this.songSemanticSearchService = songSemanticSearchService;
         }
 
         // 搜尋 Spotify
@@ -240,5 +245,32 @@ public class SpotifyTools {
                 int savedCount = playerHistoryService.syncRecentlyPlayed(safeResponse.items());
 
                 return RecentlyPlayedToolResponse.from(safeResponse.items(), savedCount);
+        }
+
+        @Tool(description = """
+                        Search the existing song catalog by natural-language meaning using embeddings and pgvector.
+
+                        Call this tool only when the user is asking for song recommendations based on themes,
+                        mood, atmosphere, activities, feelings, or other semantic preferences. First use the
+                        existing OpenClaw chat model to turn the user's request into a concise semanticQuery.
+                        Do not call this tool for general factual questions such as "What is Spotify?".
+
+                        This tool returns candidate songs, not a final natural-language answer. After the tool
+                        returns, select and explain recommendations using only songs and artists present in the
+                        candidates. Never invent a song, artist, or URL that the tool did not return.
+                        """)
+        public SongSemanticSearchResponse searchSongsBySemanticQuery(
+                        @ToolParam(description = """
+                                        A concise semantic description dynamically produced from the user's request.
+                                        Include the desired theme, mood, atmosphere, or activity. Do not use a fixed
+                                        keyword rule and do not pass an empty query.
+                                        """) String semanticQuery,
+                        @ToolParam(description = """
+                                        Maximum number of distinct candidate songs to return.
+                                        Optional; defaults to 10. Allowed range is 1 to 20.
+                                        """, required = false) Integer topK) {
+                return songSemanticSearchService
+                                .search(semanticQuery, topK)
+                                .block();
         }
 }

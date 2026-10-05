@@ -17,16 +17,41 @@ import com.example.DTO.RecentlyPlayed.RecentlyPlayedResponse.RecentlyPlayedItem;
 import com.example.DTO.RecentlyPlayed.RecentlyPlayedResponse.Track;
 import com.example.Spotify.SpotifyService;
 import com.example.playerhistory.service.PlayerHistoryService;
+import com.example.song.service.SongSemanticSearchService;
+import com.example.song.DTO.SongSemanticCandidate;
+import com.example.song.DTO.SongSemanticSearchResponse;
 
 import reactor.core.publisher.Mono;
 
 class SpotifyToolsTest {
 
     @Test
+    void delegatesSemanticSongSearchAndReturnsCandidates() {
+        SpotifyService spotifyService = mock(SpotifyService.class);
+        PlayerHistoryService historyService = mock(PlayerHistoryService.class);
+        SongSemanticSearchService semanticSearchService = mock(SongSemanticSearchService.class);
+        SpotifyTools tools = new SpotifyTools(
+                spotifyService, historyService, semanticSearchService);
+        SongSemanticSearchResponse expected = new SongSemanticSearchResponse(
+                "romantic gentle love",
+                1,
+                List.of(new SongSemanticCandidate(
+                        1, "Song A", "Artist A", "romantic lyrics", "/song-a", 0, 0.9, 0.1)));
+        when(semanticSearchService.search("romantic gentle love", 5))
+                .thenReturn(Mono.just(expected));
+
+        var response = tools.searchSongsBySemanticQuery("romantic gentle love", 5);
+
+        assertEquals(expected, response);
+        verify(semanticSearchService).search("romantic gentle love", 5);
+    }
+
+    @Test
     void fetchesPersistsAndReturnsMcpFriendlyResponse() {
         SpotifyService spotifyService = mock(SpotifyService.class);
         PlayerHistoryService historyService = mock(PlayerHistoryService.class);
-        SpotifyTools tools = new SpotifyTools(spotifyService, historyService);
+        SpotifyTools tools = new SpotifyTools(
+                spotifyService, historyService, mock(SongSemanticSearchService.class));
         RecentlyPlayedItem item = new RecentlyPlayedItem(
                 new Track(
                         "track-1", "Song A", "spotify:track:track-1", null,
@@ -54,7 +79,8 @@ class SpotifyToolsTest {
     void returnsEmptyResultWhenSpotifyHasNoHistory() {
         SpotifyService spotifyService = mock(SpotifyService.class);
         PlayerHistoryService historyService = mock(PlayerHistoryService.class);
-        SpotifyTools tools = new SpotifyTools(spotifyService, historyService);
+        SpotifyTools tools = new SpotifyTools(
+                spotifyService, historyService, mock(SongSemanticSearchService.class));
         when(spotifyService.getRecentlyPlayed(null))
                 .thenReturn(Mono.just(RecentlyPlayedResponse.empty()));
 
@@ -69,7 +95,8 @@ class SpotifyToolsTest {
     void excludesIncompleteSpotifyItemsFromMcpTracks() {
         SpotifyService spotifyService = mock(SpotifyService.class);
         PlayerHistoryService historyService = mock(PlayerHistoryService.class);
-        SpotifyTools tools = new SpotifyTools(spotifyService, historyService);
+        SpotifyTools tools = new SpotifyTools(
+                spotifyService, historyService, mock(SongSemanticSearchService.class));
         RecentlyPlayedItem incomplete = new RecentlyPlayedItem(
                 new Track(null, null, null, null, null, null, null, null),
                 Instant.parse("2026-09-25T02:00:00Z"),
