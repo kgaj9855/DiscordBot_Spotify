@@ -2,8 +2,7 @@
 
 以 Java 21 與 Spring Boot 建立的 Spotify 整合服務。專案目前提供 Streamable HTTP MCP Server，讓 AI Agent 能透過 MCP Tools 執行 Spotify OAuth、搜尋歌曲、讀取播放狀態、管理播放清單、同步最近播放紀錄，以及使用 Ollama embedding 與 PostgreSQL `pgvector` 進行歌詞語意搜尋。
 
-
-## 目前功能
+## 功能
 
 - Spotify 搜尋：track、artist、album、playlist
 - 取得使用者 Top Tracks
@@ -14,6 +13,10 @@
 - 取得最近播放紀錄並同步到 PostgreSQL
 - 使用 PostgreSQL `pgvector` 搜尋語意相近歌曲
 - Spring AI MCP Server（Streamable HTTP）
+
+## 系統架構
+
+[!image]https://github.com/kgaj9855/Picture/blob/main/Spring%20MCP%20%E9%9F%B3%E6%A8%82%E5%8A%A9%E7%90%86%E7%B3%BB%E7%B5%B1%E6%9E%B6%E6%A7%8B%E5%9C%96.png
 
 ## 技術棧
 
