@@ -2,6 +2,7 @@
 
 以 Java 21 與 Spring Boot 建立的 Spotify 整合服務。專案目前提供 Streamable HTTP MCP Server，讓 AI Agent 能透過 MCP Tools 執行 Spotify OAuth、搜尋歌曲、讀取播放狀態、管理播放清單、同步最近播放紀錄，以及使用 Ollama embedding 與 PostgreSQL `pgvector` 進行歌詞語意搜尋。
 
+
 ## 功能
 
 - Spotify 搜尋：track、artist、album、playlist
@@ -14,60 +15,29 @@
 - 使用 PostgreSQL `pgvector` 搜尋語意相近歌曲
 - Spring AI MCP Server（Streamable HTTP）
 
-## 系統架構
+## 系統功能架構
+![image]
+(https://github.com/kgaj9855/Picture/blob/main/Spring%20MCP%20%E9%9F%B3%E6%A8%82%E5%8A%A9%E7%90%86%E7%B3%BB%E7%B5%B1%E6%9E%B6%E6%A7%8B%E5%9C%96.png)
 
-![image](https://github.com/kgaj9855/Picture/blob/main/Spring%20MCP%20%E9%9F%B3%E6%A8%82%E5%8A%A9%E7%90%86%E7%B3%BB%E7%B5%B1%E6%9E%B6%E6%A7%8B%E5%9C%96.png)
 
-## 技術棧
+## 系統部署架構圖
+![image](https://github.com/kgaj9855/Picture/blob/main/Discord%20%E6%A9%9F%E5%99%A8%E4%BA%BA%20CI_CD%20%E9%83%A8%E7%BD%B2%E6%9E%B6%E6%A7%8B%E5%9C%96.png)
 
-| 類別 | 技術 |
-| --- | --- |
-| Runtime | Java 21 |
-| Framework | Spring Boot 3.5.0 |
-| MCP | Spring AI 1.1.8 MCP Server WebMVC |
-| Reactive HTTP | Spring WebFlux、WebClient、HTTP Interface |
-| Spotify | Spotify Web API、spotify-web-api-java 9.4.0 |
-| Discord | JDA 6.5.0（依賴已加入，Bot listener 尚未實作） |
-| Database | PostgreSQL 16、Spring Data JPA、JdbcClient |
-| Vector Search | pgvector、HNSW、cosine distance |
-| Embedding | Ollama `/api/embed` |
-| Migration | Flyway |
-| Deployment | Docker、Kubernetes、Minikube、Istio |
 
-## 架構
+## 使用技術
 
-```text
-MCP Client / AI Agent
-          │
-          │ Streamable HTTP: /mcp
-          ▼
-┌───────────────────────────────┐
-│ Spring Boot Application       │
-│                               │
-│ SpotifyTools (MCP Tool Layer) │
-│              │                │
-│              ▼                │
-│ Service Layer                 │
-│ ├─ SpotifyService             │
-│ ├─ PlayerHistoryService       │
-│ └─ SongSemanticSearchService  │
-│        │              │       │
-│        ▼              ▼       │
-│ Spotify API       Ollama      │
-│ Client            Client      │
-└────────────┬──────────────────┘
-             │
-             ▼
-     PostgreSQL + pgvector
-```
-
-程式碼遵循以下呼叫方向：
-
-```text
-Discord / MCP → Service Layer → API Client → External API
-```
-
-Discord 與 MCP 若使用相同 Spotify 功能，應共用既有 Service Layer，不應各自重新實作 Spotify HTTP request。
+| 類別 | 使用技術 |
+|---|---|
+| 程式語言 | Java 21 |
+| 開發框架 | Spring Boot 3.5.0 |
+| MCP 服務 | Spring AI 1.1.8 MCP Server WebMVC |
+| Spotify 整合 | Spotify Web API、spotify-web-api-java 9.4.0 |
+| 資料庫 | PostgreSQL 16 |
+| 向量搜尋 | pgvector、HNSW、Cosine Similarity |
+| 向量嵌入模型 | Nomic Embed Text（`nomic-embed-text`） |
+| AI Agent | OpenClaw、OpenAI |
+| 容器化與部署 | Docker、Kubernetes、Minikube、Istio |
+| 持續整合與部署（CI/CD） | GitHub Actions、Docker Hub |
 
 ## 專案結構
 
@@ -100,11 +70,10 @@ Discord 與 MCP 若使用相同 Spotify 功能，應共用既有 Service Layer�
 - JDK 21
 - Maven 3.9+
 - PostgreSQL，且可啟用 `vector` extension
-- Ollama 或相容的 `/api/embed` 服務
+- Ollama
 - Spotify Developer 應用程式
 - 選用：Docker
 - 選用：Minikube、kubectl、Istio（Kubernetes 部署時需要）
-
 
 ## 本機啟動
 
@@ -227,41 +196,3 @@ target/DiscordBot-1.0-SNAPSHOT.jar
 ```bash
 java -jar target/DiscordBot-1.0-SNAPSHOT.jar
 ```
-
-## Docker
-
-Dockerfile 使用 Maven 與 Eclipse Temurin 21 建立 multi-stage image，runtime container 使用非 root 的 `app` 使用者。
-
-```bash
-docker build -t discord-bot:local .
-```
-
-執行容器時必須提供 Spotify、Ollama 與 PostgreSQL 設定。容器內的 `localhost` 指向容器本身，因此外部服務位址必須使用容器可解析的 hostname。
-
-```bash
-docker run --rm -p 8080:8080 \
-  -e SPOTIFY_CLIENT_ID='<your-client-id>' \
-  -e SPOTIFY_CLIENT_SECRET='<your-client-secret>' \
-  -e SPOTIFY_REDIRECT_URI='http://localhost:8080/callback' \
-  -e OLLAMA_BASE_URL='http://host.docker.internal:11434' \
-  -e OLLAMA_EMBEDDING_MODEL='<your-768-dimension-model>' \
-  -e SPRING_DATASOURCE_URL='jdbc:postgresql://<database-host>:5432/spotify' \
-  -e SPRING_DATASOURCE_USERNAME='<your-database-user>' \
-  -e SPRING_DATASOURCE_PASSWORD='<your-database-password>' \
-  discord-bot:local
-```
-
-`host.docker.internal` 的可用性依作業系統與 Docker 環境而異。
-
-## Kubernetes / Minikube
-
-`k8s/` 目前提供：
-
-| 檔案 | 用途 |
-| --- | --- |
-| `postgresql-deployment.yaml` | PostgreSQL 16、pgvector、5 Gi PVC 與 ClusterIP Service |
-| `deployment.yaml` | Spring Boot application Deployment |
-| `service.yaml` | 應用程式的 ClusterIP Service |
-| `gateway.yaml` | Istio HTTPS Gateway，host 為 `discord.test` |
-| `virtual-service.yaml` | 將 `discord.test` 流量導向應用程式 |
-
