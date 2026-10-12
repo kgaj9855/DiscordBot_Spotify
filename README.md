@@ -16,8 +16,7 @@
 - Spring AI MCP Server（Streamable HTTP）
 
 ## 系統功能架構
-![image]
-(https://github.com/kgaj9855/Picture/blob/main/Spring%20MCP%20%E9%9F%B3%E6%A8%82%E5%8A%A9%E7%90%86%E7%B3%BB%E7%B5%B1%E6%9E%B6%E6%A7%8B%E5%9C%96.png)
+![image](https://github.com/kgaj9855/Picture/blob/main/Spring%20MCP%20%E9%9F%B3%E6%A8%82%E5%8A%A9%E7%90%86%E7%B3%BB%E7%B5%B1%E6%9E%B6%E6%A7%8B%E5%9C%96.png)
 
 
 ## 系統部署架構圖
